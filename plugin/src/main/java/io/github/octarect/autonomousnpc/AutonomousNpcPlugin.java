@@ -16,6 +16,8 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
+import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
@@ -26,6 +28,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
@@ -33,6 +36,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -131,6 +135,7 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
         ServerPlayer npc = new ServerPlayer(server, level, profile, ClientInformation.createDefault());
         npc.connection = new ServerGamePacketListenerImpl(server, new FakeConnection(), npc, CommonListenerCookie.createInitial(profile, false));
         npc.setPos(state.location.getX(), state.location.getY(), state.location.getZ());
+        server.getPlayerList().broadcastAll(ClientboundPlayerInfoUpdatePacket.createSinglePlayerInitializing(npc, true));
         level.addNewPlayer(npc);
         Player player = (Player) npc.getBukkitEntity();
         if (state.initialized) player.getInventory().setContents(state.inventory);
@@ -142,12 +147,24 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
         player.setFoodLevel(state.food);
         players.put(id, npc);
         holdTickets(id, player.getLocation());
+        getLogger().info("Spawned " + state.name + " at " + player.getLocation());
     }
 
     private void despawn(UUID id) {
         releaseTickets(id);
         ServerPlayer npc = players.remove(id);
-        if (npc != null) npc.discard();
+        if (npc != null) {
+            ((CraftServer) Bukkit.getServer()).getServer().getPlayerList().broadcastAll(new ClientboundPlayerInfoRemovePacket(List.of(id)));
+            npc.discard();
+        }
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+            ServerGamePacketListenerImpl connection = ((CraftPlayer) event.getPlayer()).getHandle().connection;
+            players.values().forEach(npc -> connection.send(ClientboundPlayerInfoUpdatePacket.createSinglePlayerInitializing(npc, true)));
+        }, 1L);
     }
 
     private void think() {
