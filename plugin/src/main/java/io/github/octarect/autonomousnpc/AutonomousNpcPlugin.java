@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -46,6 +47,7 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
     private static final class FakeConnection extends Connection {
         FakeConnection() {
             super(PacketFlow.SERVERBOUND);
+            new EmbeddedChannel(this);
         }
 
         @Override
