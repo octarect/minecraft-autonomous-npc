@@ -80,13 +80,7 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
         if (world == null) return;
         var section = getConfig().getConfigurationSection("npcs");
         if (section == null) {
-            Map<UUID, NpcState> defaults = new HashMap<>();
-            for (String name : DEFAULT_NAMES) {
-                UUID id = UUID.randomUUID();
-                defaults.put(id, new NpcState(id, name, world.getSpawnLocation()));
-            }
-            states.clear();
-            states.putAll(defaults);
+            addMissingDefaults(world);
             return;
         }
         for (String key : section.getKeys(false)) {
@@ -108,6 +102,16 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
             List<?> storedInventory = section.getList(key + ".inventory", List.of());
             state.inventory = storedInventory.stream().filter(ItemStack.class::isInstance).map(ItemStack.class::cast).toArray(ItemStack[]::new);
             states.put(id, state);
+        }
+        addMissingDefaults(world);
+    }
+
+    private void addMissingDefaults(World world) {
+        for (String name : DEFAULT_NAMES) {
+            if (states.values().stream().noneMatch(state -> state.name.equalsIgnoreCase(name))) {
+                UUID id = UUID.randomUUID();
+                states.put(id, new NpcState(id, name, world.getSpawnLocation()));
+            }
         }
     }
 
@@ -302,7 +306,10 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || args[0].equals("list")) {
-            states.values().forEach(state -> sender.sendMessage(state.name + ": " + (players.containsKey(state.id) ? "active" : "inactive") + (state.paused ? " (paused)" : "")));
+            states.values().forEach(state -> {
+                Location location = players.containsKey(state.id) ? ((Player) players.get(state.id).getBukkitEntity()).getLocation() : state.location;
+                sender.sendMessage(state.name + ": " + (players.containsKey(state.id) ? "active" : "inactive") + (state.paused ? " (paused)" : "") + ", " + state.goal + ", " + format(location));
+            });
             return true;
         }
         if (args.length < 2) return false;
@@ -313,10 +320,14 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
             case "resume" -> { state.paused = false; spawn(state.id); }
             case "spawn" -> spawn(state.id);
             case "remove" -> { despawn(state.id); states.remove(state.id); }
-            case "debug" -> sender.sendMessage(state.name + " id=" + state.id + " aggressive=" + state.aggressive + " tickets=" + tickets.getOrDefault(state.id, List.of()).size());
+            case "debug" -> sender.sendMessage(state.name + " id=" + state.id + " aggressive=" + state.aggressive + " location=" + format(players.containsKey(state.id) ? ((Player) players.get(state.id).getBukkitEntity()).getLocation() : state.location) + " home=" + format(state.home) + " tickets=" + tickets.getOrDefault(state.id, List.of()).size());
             default -> { return false; }
         }
         saveStates();
         return true;
+    }
+
+    private String format(Location location) {
+        return location.getWorld().getName() + " " + String.format("%.1f %.1f %.1f", location.getX(), location.getY(), location.getZ());
     }
 }
