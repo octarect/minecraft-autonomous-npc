@@ -172,7 +172,8 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
                 moveToward(npc, here, state.home);
             }
             else {
-                Entity target = state.aggressive ? nearest(player, Player.class, 3) : Bukkit.getPlayer(state.retaliateAgainst);
+                Entity target = state.aggressive ? nearest(player, Player.class, 3)
+                        : state.retaliateAgainst == null ? null : Bukkit.getPlayer(state.retaliateAgainst);
                 if (target != null && target.getLocation().getWorld() == here.getWorld() && target.getLocation().distanceSquared(here) <= 9) {
                     state.goal = "attacking";
                     player.attack(target);
