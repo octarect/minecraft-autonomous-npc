@@ -1,0 +1,5 @@
+activity-radius: 64
+skin:
+  # Paste a fixed signed textures property here; no Mojang API lookup is performed.
+  texture: ""
+  signature: ""

@@ -1,0 +1,15 @@
+name: AutonomousNPC
+version: ${version}
+main: io.github.octarect.autonomousnpc.AutonomousNpcPlugin
+api-version: '26.2'
+description: Persistent autonomous ServerPlayer NPCs for Paper 26.2.
+website: https://github.com/octarect/minecraft-autonomous-npc
+commands:
+  autonomousnpc:
+    description: Manage autonomous NPCs.
+    usage: /autonomousnpc <list|pause|resume|spawn|remove|debug> [name]
+    permission: autonomousnpc.admin
+permissions:
+  autonomousnpc.admin:
+    description: Manage autonomous NPCs.
+    default: op
