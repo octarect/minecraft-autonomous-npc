@@ -11,6 +11,11 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ClientInformation;
+import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
@@ -37,6 +42,17 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, ServerPlayer> players = new HashMap<>();
     private final Map<UUID, List<org.bukkit.Chunk>> tickets = new HashMap<>();
     private final Map<String, Integer> ticketReferences = new HashMap<>();
+
+    private static final class FakeConnection extends Connection {
+        FakeConnection() {
+            super(PacketFlow.SERVERBOUND);
+        }
+
+        @Override
+        public void send(Packet<?> packet) {
+            // Fake players have no client; entity tracker packets are intentionally discarded.
+        }
+    }
 
     @Override
     public void onEnable() {
@@ -113,6 +129,7 @@ public final class AutonomousNpcPlugin extends JavaPlugin implements Listener {
         String signature = getConfig().getString("skin.signature", "");
         if (!texture.isEmpty() && !signature.isEmpty()) profile.properties().put("textures", new Property("textures", texture, signature));
         ServerPlayer npc = new ServerPlayer(server, level, profile, ClientInformation.createDefault());
+        npc.connection = new ServerGamePacketListenerImpl(server, new FakeConnection(), npc, CommonListenerCookie.createInitial(profile, false));
         npc.setPos(state.location.getX(), state.location.getY(), state.location.getZ());
         level.addNewPlayer(npc);
         Player player = (Player) npc.getBukkitEntity();
